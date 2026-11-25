@@ -37,11 +37,12 @@ install: plugin
 	cp -R bin/offbeat-turbo.vst3 "$(VST3_DIR)/"
 	cp -R bin/offbeat-turbo.lv2 "$(LV2_DIR)/"
 	cp bin/offbeat-turbo-ladspa.dylib "$(LADSPA_DIR)/"
-	cp bin/offbeat-turbo-ladspa.dylib "$(LMMS_LADSPA_DIR)/"
+	rm -f "$(LMMS_LADSPA_DIR)/offbeat-turbo-ladspa.dylib"  # alte Kopie mit falscher Endung
+	cp bin/offbeat-turbo-ladspa.dylib "$(LMMS_LADSPA_DIR)/offbeat-turbo-ladspa.so"  # LMMS lädt nur *.so
 	codesign --force --deep -s - "$(VST3_DIR)/offbeat-turbo.vst3"
 	codesign --force -s - "$(LV2_DIR)/offbeat-turbo.lv2/offbeat-turbo.dylib"  # LV2-Ordner ist kein Bundle
 	codesign --force -s - "$(LADSPA_DIR)/offbeat-turbo-ladspa.dylib"
-	codesign --force -s - "$(LMMS_LADSPA_DIR)/offbeat-turbo-ladspa.dylib"
+	codesign --force -s - "$(LMMS_LADSPA_DIR)/offbeat-turbo-ladspa.so"
 
 clean:
 	rm -rf bin build
