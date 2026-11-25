@@ -1,0 +1,17 @@
+# Build-Ergebnisse
+build/
+bin/
+*.o
+*.d
+*.a
+*.dylib
+*.vst3/
+*.lv2/
+*.clap/
+*.wav
+
+# Graphify-Ausgabe (nicht committen)
+graphify-out/
+
+# macOS
+.DS_Store
