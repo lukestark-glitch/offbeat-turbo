@@ -17,6 +17,8 @@ const ParamInfo kParams[kParamCount] = {
     { "Input RMS",        "in_rms",       "dB",  -60,    0,      -60,     kFlagOutput },
     { "Gain Reduction",   "gain_red",     "dB",  -30,    0,      0,       kFlagOutput },
     { "Output True Peak", "out_peak",     "dB",  -60,    6,      -60,     kFlagOutput },
+    { "Auto Loudness",    "auto",         "",    0,      1,      0,       kFlagBool },
+    { "Auto Gain",        "auto_gain",    "dB",  -12,    12,     0,       kFlagOutput },
 };
 
 namespace {

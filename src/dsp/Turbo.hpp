@@ -62,6 +62,10 @@ private:
     // Kompressor
     float compEnv = 0.0f;
 
+    // Auto-Lautheit: zusätzliche Verstärkung in dB, regelt den Ausgang (τ 1 s) langsam auf Target.
+    // Friert ein bei Stille und in Breakdowns (Eingang > 10 dB unter seinem jüngsten Maximum).
+    float autoDb = 0.0f, autoOutMs = 0.0f, autoInMs = 0.0f, autoInPeakDb = -120.0f;
+
     // Limiter
     int lookahead = 72;
     TruePeak tpL, tpR, tpOutL, tpOutR;

@@ -81,5 +81,11 @@ Der Regler **Target** (Standard −7,5 dBFS) setzt nur die Zielmarke der Anzeige
   - Zusätzlich kommt sie in den LMMS-LADSPA-Ordner aus `~/.lmmsrc.xml` (`laddir`, hier `~/Documents/lmms/plugins/ladspa/`).
   - Andere Dateien dort werden nicht angefasst.
 - **Turbo in Carla:** Ein Carla Rack ist in LMMS ein Instrument. Turbo darin wirkt nur auf Klänge aus demselben Carla. Für den Master ist darum LADSPA gedacht.
-- **Kein Auto-Gain:** Target ist nur eine Anzeige. Der Nutzer dreht Boost, bis der Balken in der Zielzone steht; das ist vorsichtiger als eine Automatik.
+- **Auto (vom Nutzer gewünscht, PR #2):** Schalter Manuell ↔ Auto, Standard Manuell.
+  - Auto regelt zusätzlich zum Boost auf Target.
+  - Geschwindigkeit: 0,5 dB/s je dB Abstand, höchstens 1,5 dB/s, Bereich ±12 dB.
+  - Gemessen am Ausgang mit 1 s Zeitkonstante.
+  - Friert ein bei Stille (unter −50 dBFS) und in Breakdowns (Eingang > 10 dB unter seinem jüngsten Maximum, das mit 0,2 dB/s sinkt).
+  - Geprüft: Ein Mix mit −22 und mit −12 dBFS RMS landet nach 30 s bei −7,5 dBFS. In 12 s Breakdown (−20 dB) ändert sich Auto um +0,7 dB.
+  - Grenze: Bleibt ein neuer Teil des Songs länger als etwa 50 s leiser, regelt Auto ihn hoch.
 - **Clipper ohne Oversampling:** Er läuft auf einfacher Abtastrate (minimal Aliasing bei viel Clip). Der Limiter danach ist dennoch True-Peak-sicher.

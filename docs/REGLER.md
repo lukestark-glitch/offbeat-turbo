@@ -6,7 +6,8 @@ Turbo macht den Mix laut. Der Weg geht über Glue-Kompressor, Soft-Clipper und e
 
 1. LMMS neu starten. Die LADSPA-Version liegt schon in deinem LMMS-LADSPA-Ordner (`~/Documents/lmms/plugins/ladspa/`).
 2. **FX-Mixer** öffnen (F9), beim **Master** im Effekt-Bereich „Add effect“ wählen und „Offbeat Turbo“ aus der LADSPA-Liste nehmen.
-3. Den Drop abspielen und **Boost** hochdrehen, bis die Lautheit passt.
+3. Entweder **Auto** an: Turbo regelt den Drop von selbst auf Target (−7,5 dBFS RMS). Am besten den Song einmal laufen lassen, Auto braucht ein paar Sekunden.
+   Oder **Auto** aus und **Boost** hochdrehen, bis die Lautheit passt.
    - In der LADSPA-Version gibt es nur einfache Regler und keine Anzeige.
    - Zum Messen exportierst du den Song als WAV und rufst `turbo-render --in song.wav` auf. Es zeigt die Lautheit vorher und nachher.
 
@@ -26,9 +27,10 @@ Turbo macht den Mix laut. Der Weg geht über Glue-Kompressor, Soft-Clipper und e
 | Clip | 0 … 100 % | 40 % | Soft-Clipper vor dem Limiter: mehr = mehr Lautheit durch Sättigung, weniger Limiter-Pumpen |
 | Ceiling | −3 … 0 dB | −0,3 dB | Höchster Pegel am Ausgang (True-Peak) |
 | Lim. Release | 10 … 500 ms | 60 ms | Wie schnell der Limiter loslässt; kurz = lauter, lang = ruhiger |
-| Target | −14 … −4 dB | −7,5 dB | Nur die Zielmarke in der Anzeige, regelt nichts |
+| Target | −14 … −4 dB | −7,5 dB | Ziellautheit: Marke in der Anzeige; mit **Auto** regelt Turbo darauf |
+| Auto | Aus / An | Aus | **Aus (Manuell):** Du drehst Boost, bis die Anzeige im Ziel steht. **An:** Turbo regelt zusätzlich zum Boost langsam (höchstens 1,5 dB/s, ±12 dB) auf Target nach; in Stille und Breakdowns (Eingang > 10 dB leiser als zuvor) friert die Automatik ein |
 
-**Anzeige** (nur LV2/VST3):
+**Anzeige** (nur LV2/VST3; mit Auto steht unten links die aktuelle Auto-Verstärkung):
 - **Ausgang-RMS** über 3 s, mit grüner Zielzone −9 … −6 und dem Target-Strich.
 - **Eingang-RMS.**
 - **Gain-Reduction.**
@@ -57,5 +59,5 @@ bin/turbo-render --check-all                      # Abnahme (= make check)
 ```
 
 **JSON** wie bei den anderen Offbeat-Plugins.
-- **Kurznamen:** `boost glue comp_attack comp_release clip ceiling lim_release target`
+- **Kurznamen:** `boost glue comp_attack comp_release clip ceiling lim_release target auto`
 - %-Regler stehen als 0 … 1.

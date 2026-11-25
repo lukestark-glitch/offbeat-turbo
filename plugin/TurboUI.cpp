@@ -50,6 +50,17 @@ protected:
 
         drawPanel(kMargin, kTopY, 420, kTopH, "LADEDRUCK", th.brand);
         bigKnob(kBoost, kMargin + 210, kTopY + kLabelH + 140, 125, th.brand);
+        compact(kAuto, 150, kTopY + 3, 130, th.brand); // Manuell ↔ Auto (regelt zusätzlich auf Target)
+        if (values[kAuto] >= 0.5f) {
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "AUTO %+.1f dB", values[kAutoGain]);
+            fontSize(12);
+            textLetterSpacing(1.5f);
+            textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+            fillColor(th.brand);
+            text(kMargin + 14, kTopY + kTopH - 14, buf, nullptr);
+            textLetterSpacing(0);
+        }
 
         drawPanel(kMeterX, kTopY, kW - kMargin - kMeterX, kTopH, "LAUTHEIT", th.brand);
         drawImage(turbo, kW - 300, 6, 260, 130); // ragt aus dem Kopf in die Anzeige
@@ -68,6 +79,7 @@ protected:
         case kCompRelease: return "Release";
         case kLimRelease: return "Lim. Release";
         case kBoost: return "Boost";
+        case kAuto: return "Auto";
         default: return kParams[p].name;
         }
     }
@@ -125,7 +137,11 @@ private:
     {
         const float out = values[kOutRms], target = values[kTarget];
         const bool inZone = out >= -9.0f && out <= -6.0f;
-        const char* state = out < -40.0f ? "KEIN SIGNAL" : out < -9.0f ? "ZU LEISE: BOOST HOCH" : out > -6.0f ? "SEHR LAUT" : "IM ZIEL";
+        const bool autoOn = values[kAuto] >= 0.5f;
+        const char* state = out < -40.0f ? "KEIN SIGNAL"
+                          : out < -9.0f  ? (autoOn ? "AUTO REGELT HOCH" : "ZU LEISE: BOOST HOCH")
+                          : out > -6.0f  ? (autoOn ? "AUTO REGELT RUNTER" : "SEHR LAUT")
+                                         : "IM ZIEL";
         fontSize(12);
         textLetterSpacing(2);
         textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
