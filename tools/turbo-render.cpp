@@ -103,7 +103,7 @@ float loudestDb(const Audio& a)
     return (float)(10.0 * std::log10(best + 1e-24));
 }
 
-Audio process(const Audio& in, const float* values)
+Audio process(const Audio& in, const float* values, std::vector<float>* autoTrace = nullptr)
 {
     Turbo turbo;
     turbo.setSampleRate((float)in.sr);
@@ -113,6 +113,8 @@ Audio process(const Audio& in, const float* values)
     for (size_t pos = 0; pos < in.l.size(); pos += 256) {
         const uint32_t n = (uint32_t)std::min<size_t>(256, in.l.size() - pos);
         turbo.process(&in.l[pos], &in.r[pos], &out.l[pos], &out.r[pos], n);
+        if (autoTrace)
+            autoTrace->push_back(turbo.getParam(kAutoGain)); // ein Wert pro 256 Samples
     }
     // Latenz herausrechnen, damit vorher/nachher übereinander liegen
     const size_t lat = turbo.latency();
@@ -195,6 +197,55 @@ int checkAll()
             std::snprintf(buf, sizeof(buf), "Spitzen knapp unter 0: True-Peak ≥ −1,5 dBTP (gemessen %.2f)", tp);
             expect(buf, tp >= -1.5f);
         }
+    }
+
+    // Auto: leiser und lauter Mix regeln sich auf Target; im Breakdown friert Auto ein.
+    auto scaled = [](const Audio& a, float db, int repeat) {
+        Audio o { {}, {}, a.sr };
+        const float g = std::pow(10.0f, db / 20.0f);
+        for (int k = 0; k < repeat; ++k)
+            for (size_t i = 0; i < a.l.size(); ++i)
+                o.l.push_back(g * a.l[i]), o.r.push_back(g * a.r[i]);
+        return o;
+    };
+    auto lastWindow = [](const Audio& a, float seconds) {
+        const size_t n = (size_t)(seconds * a.sr);
+        Audio o { std::vector<float>(a.l.end() - n, a.l.end()), std::vector<float>(a.r.end() - n, a.r.end()), a.sr };
+        return o;
+    };
+    for (float inDb : { -6.0f, 4.0f }) {
+        float values[kParamCount];
+        applyPreset(0, values);
+        values[kAuto] = 1.0f;
+        std::vector<float> trace;
+        const Audio out = process(scaled(drop, inDb, 3), values, &trace);
+        const Audio tail = lastWindow(out, 6.0f);
+        std::printf("== Auto, Mix %+.0f dB gegenüber dem Test-Drop (RMS %.0f dBFS), 36 s\n", inDb, -16.0f + inDb);
+        report("Ende", tail);
+        std::snprintf(buf, sizeof(buf), "Auto trifft Target %.1f ±1 dB in den letzten 6 s (gemessen %.2f, Auto %+.1f dB)",
+                      values[kTarget], loudestDb(tail), trace.back());
+        expect(buf, std::fabs(loudestDb(tail) - values[kTarget]) <= 1.0f);
+        std::snprintf(buf, sizeof(buf), "True-Peak ≤ Ceiling (gemessen %.2f)", truePeakDb(out));
+        expect(buf, truePeakDb(out) <= values[kCeiling] + 0.05f);
+    }
+    {
+        float values[kParamCount];
+        applyPreset(0, values);
+        values[kAuto] = 1.0f;
+        Audio song = scaled(drop, -4.0f, 2);                       // 24 s Drop
+        const Audio breakdown = scaled(drop, -24.0f, 1);          // 12 s Breakdown, 20 dB leiser
+        const Audio again = scaled(drop, -4.0f, 1);
+        song.l.insert(song.l.end(), breakdown.l.begin(), breakdown.l.end());
+        song.r.insert(song.r.end(), breakdown.r.begin(), breakdown.r.end());
+        song.l.insert(song.l.end(), again.l.begin(), again.l.end());
+        song.r.insert(song.r.end(), again.r.begin(), again.r.end());
+        std::vector<float> trace;
+        process(song, values, &trace);
+        const size_t perSec = 48000 / 256;
+        const float before = trace[24 * perSec - 1], during = trace[36 * perSec - 1];
+        std::printf("== Auto, Drop 24 s → Breakdown −20 dB 12 s → Drop: Auto vor %.1f dB, am Ende des Breakdowns %.1f dB\n", before, during);
+        std::snprintf(buf, sizeof(buf), "Auto zieht im Breakdown nicht hoch (Änderung ≤ 1 dB, gemessen %+.2f)", during - before);
+        expect(buf, std::fabs(during - before) <= 1.0f);
     }
 
     // Grenzfall: Sinus bei sr/4 mit 45°-Phase → Samples bei ±0,707 der Spitze, True-Peak 3 dB über Sample-Peak.

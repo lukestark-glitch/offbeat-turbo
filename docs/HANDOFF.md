@@ -4,6 +4,7 @@
 - Glue-Kompressor → Soft-Clipper → True-Peak-Limiter (4-fache Erkennung, 1,5 ms Look-ahead).
 - Oberfläche mit Ladedruck-Regler und Lautheitsanzeige (LV2/VST3).
 - LADSPA-Version für den LMMS-Master.
+- Auto-Lautheit (Schalter Manuell ↔ Auto) regelt auf Target, friert in Breakdowns ein.
 - `turbo-render` liest eigene WAVs; `make check` prüft Presets und Grenzfälle.
 
 **Als Nächstes**

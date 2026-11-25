@@ -111,6 +111,8 @@ void Turbo::setSampleRate(float newSr)
 void Turbo::reset()
 {
     compEnv = 0.0f;
+    autoDb = autoOutMs = autoInMs = 0.0f;
+    autoInPeakDb = -120.0f;
     tpL.reset(), tpR.reset(), tpOutL.reset(), tpOutR.reset();
     std::fill(delayL.begin(), delayL.end(), 0.0f);
     std::fill(delayR.begin(), delayR.end(), 0.0f);
@@ -139,7 +141,14 @@ void Turbo::process(const float* inL, const float* inR, float* outL, float* outR
     const unsigned int oldCsr = _mm_getcsr();
     _mm_setcsr(oldCsr | 0x8040); // Flush-to-Zero + Denormals-are-Zero
 #endif
-    const float boost = std::pow(10.0f, params[kBoost] / 20.0f);
+    const bool autoOn = params[kAuto] >= 0.5f;
+    if (!autoOn)
+        autoDb = 0.0f;
+    const float outCoef = tauCoef(1000.0f, sr), inCoef = tauCoef(400.0f, sr);
+    const float peakFall = 0.2f / sr;          // jüngstes Eingangs-Maximum sinkt um 0,2 dB/s: Breakdowns bis ~50 s bleiben eingefroren
+    const float maxStep = 1.5f / sr;           // Auto ändert sich höchstens um 1,5 dB/s
+    const float target = params[kTarget];
+    const float boostFixed = std::pow(10.0f, params[kBoost] / 20.0f);
     const float ceiling = std::pow(10.0f, params[kCeiling] / 20.0f);
 
     // Glue: Schwelle −6 … −20 dBFS, Ratio 1:1 … 4:1, weiches Knie 6 dB. Make-up gleicht die Hälfte der
@@ -161,6 +170,17 @@ void Turbo::process(const float* inL, const float* inR, float* outL, float* outR
 
     for (uint32_t i = 0; i < frames; ++i) {
         inRms.add(inL[i], inR[i]);
+        if (autoOn) {
+            const float inMs = 0.5f * (inL[i] * inL[i] + inR[i] * inR[i]);
+            autoInMs = inMs + inCoef * (autoInMs - inMs);
+            const float inDb = 10.0f * std::log10(autoInMs + 1e-12f);
+            autoInPeakDb = std::fmax(inDb, autoInPeakDb - peakFall);
+            if (inDb > -50.0f && inDb > autoInPeakDb - 10.0f) {
+                const float err = target - 10.0f * std::log10(autoOutMs + 1e-12f);
+                autoDb = clampf(autoDb + clampf(0.5f * err / sr, -maxStep, maxStep), -12.0f, 12.0f);
+            }
+        }
+        const float boost = autoOn ? std::pow(10.0f, (params[kBoost] + autoDb) / 20.0f) : boostFixed;
         float l = boost * inL[i], r = boost * inR[i];
 
         float compGain = 1.0f;
@@ -213,6 +233,8 @@ void Turbo::process(const float* inL, const float* inR, float* outL, float* outR
         outR[i] = or_;
 
         outRms.add(ol, or_);
+        const float outMs = 0.5f * (ol * ol + or_ * or_);
+        autoOutMs = outMs + outCoef * (autoOutMs - outMs);
         blockPeak = std::fmax(blockPeak, std::fmax(tpOutL.process(ol), tpOutR.process(or_)));
         worstGr = std::fmin(worstGr, compGain * gain);
         if (++inPeakBlock >= (int)(0.01f * sr)) {
@@ -233,6 +255,7 @@ void Turbo::process(const float* inL, const float* inR, float* outL, float* outR
     grShown = grDb < grShown ? grDb : grShown + (grDb - grShown) * std::fmin(1.0f, (float)frames / (0.3f * sr));
     params[kGainReduction] = clampf(grShown, -30.0f, 0.0f);
     params[kOutPeak] = clampf(20.0f * std::log10(maxPeak + 1e-9f), -60.0f, 6.0f);
+    params[kAutoGain] = autoDb;
 #ifdef OFFBEAT_HAVE_SSE
     _mm_setcsr(oldCsr);
 #endif

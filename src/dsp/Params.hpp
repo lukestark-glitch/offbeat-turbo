@@ -20,6 +20,8 @@ enum ParamId {
     kInRms,
     kGainReduction,
     kOutPeak,
+    kAuto,     // An: Lautheit regelt sich langsam auf Target nach (zusätzlich zu Boost)
+    kAutoGain, // Anzeige: aktuelle Auto-Verstärkung
 
     kParamCount
 };
