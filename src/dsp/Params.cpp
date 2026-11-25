@@ -2,17 +2,20 @@
 
 namespace offbeat {
 
+// Bereiche so gewählt, dass LMMS beim Einfügen der LADSPA-Version genau die Standardwerte einstellt:
+// LADSPA kennt nur grobe Standard-Stufen (Minimum, 25 %, Mitte, 75 %, Maximum), siehe ladspaDefault()
+// in tools/turbo-render.cpp. Deshalb sind die Regler linear und die Standards liegen auf diesen Stufen.
 // clang-format off
 const ParamInfo kParams[kParamCount] = {
     // name               symbol          unit   min     max     default  flags
-    { "Boost",            "boost",        "dB",  0,      24,     13,      0 },
-    { "Glue",             "glue",         "",    0,      1,      0.3f,    0 },
-    { "Comp Attack",      "comp_attack",  "ms",  1,      50,     10,      kFlagLog },
-    { "Comp Release",     "comp_release", "ms",  30,     600,    150,     kFlagLog },
-    { "Clip",             "clip",         "",    0,      1,      0.4f,    0 },
-    { "Ceiling",          "ceiling",      "dB",  -3,     0,      -0.3f,   0 },
-    { "Limiter Release",  "lim_release",  "ms",  10,     500,    60,      kFlagLog },
-    { "Target",           "target",       "dB",  -14,    -4,     -7.5f,   0 },
+    { "Boost",            "boost",        "dB",  0,      26,     13,      0 },
+    { "Glue",             "glue",         "",    0,      0.6f,   0.3f,    0 },
+    { "Comp Attack",      "comp_attack",  "ms",  1,      19,     10,      0 },
+    { "Comp Release",     "comp_release", "ms",  20,     280,    150,     0 },
+    { "Clip",             "clip",         "",    0,      0.8f,   0.4f,    0 },
+    { "Ceiling",          "ceiling",      "dB",  -1.2f,  0,      -0.3f,   0 },
+    { "Limiter Release",  "lim_release",  "ms",  10,     110,    60,      0 },
+    { "Target",           "target",       "dB",  -11,    -4,     -7.5f,   0 },
     { "Output RMS",       "out_rms",      "dB",  -60,    0,      -60,     kFlagOutput },
     { "Input RMS",        "in_rms",       "dB",  -60,    0,      -60,     kFlagOutput },
     { "Gain Reduction",   "gain_red",     "dB",  -30,    0,      0,       kFlagOutput },

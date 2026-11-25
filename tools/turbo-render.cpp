@@ -170,6 +170,21 @@ Audio makeDrop(int sr, float rmsTarget)
     return a;
 }
 
+// Standardwert, den LMMS beim Einfügen der LADSPA-Version einstellt: DPF wählt eine LADSPA-Stufe
+// (DistrhoPluginLADSPA+DSSI.cpp), LMMS rechnet sie zurück (bei logarithmischen Reglern geometrisch).
+float ladspaDefault(const ParamInfo& p)
+{
+    const float a = p.min, b = p.max, d = p.def;
+    const bool log = p.flags & kFlagLog;
+    if (d == 0.0f || d == 1.0f || d == 100.0f || d == 440.0f || d == a || d == b)
+        return d;
+    if (d < 0.625f * a + 0.375f * b)
+        return log ? std::exp(0.75f * std::log(a) + 0.25f * std::log(b)) : 0.75f * a + 0.25f * b;
+    if (d > 0.375f * a + 0.625f * b)
+        return log ? std::exp(0.25f * std::log(a) + 0.75f * std::log(b)) : 0.25f * a + 0.75f * b;
+    return log ? std::sqrt(a * b) : 0.5f * (a + b);
+}
+
 int checkAll()
 {
     int failed = 0;
@@ -273,6 +288,15 @@ int checkAll()
         bad += (!std::isfinite(silOut.l[i]) || (silOut.l[i] != 0.0f && std::fabs(silOut.l[i]) < FLT_MIN)) ? 1 : 0;
     }
     expect("Stille bleibt Stille, kein NaN/Denormal", maxAbs == 0.0f && bad == 0);
+
+    std::puts("== LMMS-LADSPA: Standardwerte beim Einfügen");
+    for (const ParamInfo& p : kParams) {
+        if (p.flags & kFlagOutput)
+            continue;
+        const float got = ladspaDefault(p);
+        std::snprintf(buf, sizeof(buf), "%s: LMMS stellt %g ein (Standard %g)", p.name, got, p.def);
+        expect(buf, std::fabs(got - p.def) <= 0.01f * (p.max - p.min));
+    }
 
     std::puts("== Latenz");
     Turbo t;

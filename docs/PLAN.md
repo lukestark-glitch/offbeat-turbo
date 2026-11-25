@@ -74,6 +74,13 @@ Der Regler **Target** (Standard −7,5 dBFS) setzt nur die Zielmarke der Anzeige
 - **Glue:** Er gleicht die Hälfte seiner Absenkung automatisch aus (Make-up). Sonst wäre „Hart“ leiser als „Sanft“.
 - **Rechenlast:** etwa 30-fach schneller als Echtzeit.
 
+## LMMS-Test (PR #3)
+
+Getestet mit einem echten LMMS-Projekt, gerendert mit `lmms render -x 1`. Dabei kamen drei Punkte heraus:
+- **Dateiendung:** LMMS 1.2 lädt LADSPA nur mit der Endung `.so` („Unknown LADSPA plugin“ bei `.dylib`). `make install` legt die Datei deshalb im LMMS-Ordner als `offbeat-turbo-ladspa.so` ab.
+- **Standardwerte:** LADSPA kennt nur grobe Standard-Stufen. Die Regler-Bereiche sind jetzt so gewählt, dass LMMS genau die Standardwerte einstellt (`make check` prüft das). Turbo war erst seit heute veröffentlicht, gespeicherte Projekte gab es also noch nicht.
+- **Rendern über die Kommandozeile:** `lmms render` rechnet standardmäßig 2-fach überabgetastet und erzeugt beim Herunterrechnen Zwischen-Sample-Spitzen über dem Ceiling. Darum mit `-x 1` rendern; Abspielen und Export-Dialog sind davon nicht betroffen.
+
 ## Offene Fragen
 
 - **LADSPA-Installation (vom Nutzer freigegeben):**

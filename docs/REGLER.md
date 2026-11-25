@@ -4,7 +4,7 @@ Turbo macht den Mix laut. Der Weg geht über Glue-Kompressor, Soft-Clipper und e
 
 ## So benutzt du Turbo in LMMS (Master)
 
-1. LMMS neu starten. Die LADSPA-Version liegt schon in deinem LMMS-LADSPA-Ordner (`~/Documents/lmms/plugins/ladspa/`).
+1. LMMS neu starten. Die LADSPA-Version liegt als `offbeat-turbo-ladspa.so` in deinem LMMS-LADSPA-Ordner (`~/Documents/lmms/plugins/ladspa/`). LMMS 1.2 lädt dort nur Dateien mit der Endung `.so`.
 2. **FX-Mixer** öffnen (F9), beim **Master** im Effekt-Bereich „Add effect“ wählen und „Offbeat Turbo“ aus der LADSPA-Liste nehmen.
 3. Entweder **Auto** an: Turbo regelt den Drop von selbst auf Target (−7,5 dBFS RMS). Am besten den Song einmal laufen lassen, Auto braucht ein paar Sekunden.
    Oder **Auto** aus und **Boost** hochdrehen, bis die Lautheit passt.
@@ -20,14 +20,14 @@ Turbo macht den Mix laut. Der Weg geht über Glue-Kompressor, Soft-Clipper und e
 
 | Regler | Bereich | Standard | Wirkung |
 |---|---|---|---|
-| Boost (Ladedruck) | 0 … +24 dB | +13 dB | Wie stark in Kompressor, Clipper und Limiter gefahren wird; mehr = lauter |
-| Glue | 0 … 100 % | 30 % | Leichter Bus-Kompressor (Schwelle −6 … −20 dBFS, Ratio bis 4:1), hält den Mix zusammen |
-| Attack | 1 … 50 ms | 10 ms | Wie schnell Glue greift |
-| Release | 30 … 600 ms | 150 ms | Wie schnell Glue loslässt |
-| Clip | 0 … 100 % | 40 % | Soft-Clipper vor dem Limiter: mehr = mehr Lautheit durch Sättigung, weniger Limiter-Pumpen |
-| Ceiling | −3 … 0 dB | −0,3 dB | Höchster Pegel am Ausgang (True-Peak) |
-| Lim. Release | 10 … 500 ms | 60 ms | Wie schnell der Limiter loslässt; kurz = lauter, lang = ruhiger |
-| Target | −14 … −4 dB | −7,5 dB | Ziellautheit: Marke in der Anzeige; mit **Auto** regelt Turbo darauf |
+| Boost (Ladedruck) | 0 … +26 dB | +13 dB | Wie stark in Kompressor, Clipper und Limiter gefahren wird; mehr = lauter |
+| Glue | 0 … 60 % | 30 % | Leichter Bus-Kompressor (Schwelle −6 … −20 dBFS, Ratio bis 4:1), hält den Mix zusammen |
+| Attack | 1 … 19 ms | 10 ms | Wie schnell Glue greift |
+| Release | 20 … 280 ms | 150 ms | Wie schnell Glue loslässt |
+| Clip | 0 … 80 % | 40 % | Soft-Clipper vor dem Limiter: mehr = mehr Lautheit durch Sättigung, weniger Limiter-Pumpen |
+| Ceiling | −1,2 … 0 dB | −0,3 dB | Höchster Pegel am Ausgang (True-Peak) |
+| Lim. Release | 10 … 110 ms | 60 ms | Wie schnell der Limiter loslässt; kurz = lauter, lang = ruhiger |
+| Target | −11 … −4 dB | −7,5 dB | Ziellautheit: Marke in der Anzeige; mit **Auto** regelt Turbo darauf |
 | Auto | Aus / An | Aus | **Aus (Manuell):** Du drehst Boost, bis die Anzeige im Ziel steht. **An:** Turbo regelt zusätzlich zum Boost langsam (höchstens 1,5 dB/s, ±12 dB) auf Target nach; in Stille und Breakdowns (Eingang > 10 dB leiser als zuvor) friert die Automatik ein |
 
 **Anzeige** (nur LV2/VST3; mit Auto steht unten links die aktuelle Auto-Verstärkung):
@@ -37,6 +37,8 @@ Turbo macht den Mix laut. Der Weg geht über Glue-Kompressor, Soft-Clipper und e
 - **True-Peak** am Ausgang mit dem Ceiling-Strich.
 
 **Latenz:** Der Limiter schaut 1,5 ms voraus (bei 48 kHz 87 Samples Gesamtlatenz). LV2 und VST3 melden das dem Host.
+
+Die Bereiche sind so gewählt, dass LMMS beim Einfügen der LADSPA-Version genau die Standardwerte einstellt. LADSPA kennt nur grobe Standard-Stufen; `make check` prüft das für jeden Regler.
 
 ## Presets
 
