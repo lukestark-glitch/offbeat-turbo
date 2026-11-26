@@ -407,6 +407,25 @@ int previewCheck()
             maxStepSteady = std::fmax(maxStepSteady, std::fabs(ol[i] - ol[i - 1]));
     }
     expect("Vorhören startet ohne Host-Audio", played);
+    {
+        // Play im Host (auch ohne Audio am Eingang): beendet das Vorhören, und solange er spielt, startet es nicht
+        Turbo e;
+        e.setSampleRate((float)kDemoRate);
+        e.setParam(kPreviewLoop, 1);
+        std::vector<float> z(256, 0.0f), bl(256), br(256);
+        e.process(z.data(), z.data(), bl.data(), br.data(), 256);
+        e.setParam(kPreview, 2 | 8);
+        e.process(z.data(), z.data(), bl.data(), br.data(), 256);
+        const bool running = e.getParam(kPreviewActive) == 2.0f;
+        e.setTransport(true); // Play
+        for (int b = 0; b < 4; ++b)
+            e.process(z.data(), z.data(), bl.data(), br.data(), 256);
+        const bool stoppedByPlay = e.getParam(kPreviewActive) == 0.0f;
+        e.setParam(kPreview, 2);
+        e.process(z.data(), z.data(), bl.data(), br.data(), 256);
+        expect("Play im Host beendet das Vorhören", running && stoppedByPlay);
+        expect("Solange der Host spielt, startet kein Vorhören", e.getParam(kPreviewActive) == 0.0f);
+    }
     expect("Host-Audio beendet das Vorhören", hostWon);
     std::snprintf(buf, sizeof(buf), "Kein Knackser an Start/Wechsel/Stopp: größter Sprung %.4f ≤ im Klang der Ebenen selbst %.4f", maxStep, maxStepSteady);
     expect(buf, maxStep <= maxStepSteady * 1.01f);

@@ -118,6 +118,8 @@ protected:
     virtual void renderPreview() {}
     std::vector<PreviewLayer> previewLayers;
     std::vector<float> previewSum;
+    // Optional: Kurve 0..1 über der Wellenform (z. B. Pump-Kurve von Hydraulics; oben = 1), leer = keine
+    std::vector<float> previewCurve;
 
     // ---- Bausteine ------------------------------------------------------------------------------
 
@@ -568,6 +570,18 @@ protected:
             stroke();
         }
 
+        if (!previewCurve.empty()) { // Überlagerungs-Kurve (oben = 1, unten = 0)
+            beginPath();
+            const int cols = (int)ww;
+            for (int k = 0; k < cols; ++k) {
+                const float v = previewCurve[std::min(previewCurve.size() - 1, previewCurve.size() * k / cols)];
+                const float cy = wy + 4 + (wh - 8) * (1.0f - std::fmin(1.0f, std::fmax(0.0f, v)));
+                k ? lineTo(wx + k, cy) : moveTo(wx, cy);
+            }
+            strokeColor(th.text);
+            strokeWidth(1.6f);
+            stroke();
+        }
         // Dichte (Crest) und Spitze der Summe
         double sq = 0.0;
         float peak = 0.0f;

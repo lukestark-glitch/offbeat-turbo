@@ -18,6 +18,9 @@
 #define DISTRHO_PLUGIN_NUM_OUTPUTS   2
 #define DISTRHO_PLUGIN_WANT_PROGRAMS 1
 #define DISTRHO_PLUGIN_WANT_LATENCY  1
+// Nur für das Vorhören: Play im Host beendet es (LADSPA liefert keine Zeitinfo, dort bleibt es aus)
+#define DISTRHO_PLUGIN_WANT_TIMEPOS  1
+#define DISTRHO_NO_WARNINGS          1
 
 // VST2 kennt keine Anzeige-Werte; DPF zeigt dort sonst nur Parameter vor dem ersten Anzeige-Wert,
 // und "Auto" (hinten angehängt) würde fehlen. So zeigt VST2 alle Parameter (Anzeigen als Regler).

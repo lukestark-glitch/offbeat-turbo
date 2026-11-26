@@ -52,6 +52,10 @@ public:
     // heraus (vorher bzw. nachher); Host-Audio am Eingang hat Vorrang und beendet das Vorhören.
     void process(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames);
 
+    // Einmal pro Block: läuft der Host-Transport? Play beendet ein laufendes Vorhören, und solange der
+    // Host spielt, startet keins.
+    void setTransport(bool playing);
+
     // Verzögerung durch Look-ahead und Interpolator, in Samples.
     uint32_t latency() const { return (uint32_t)(lookahead - 1 + TruePeak::kDelay); }
 
@@ -66,6 +70,7 @@ private:
 
     // Vorhören
     bool previewSeen = false;
+    bool transportRunning = false;
     int lastPreview = 0, previewActive = 0, previewPending = 0; // Pending: nach dem Ausblenden umschalten
     uint32_t previewPos = 0, previewLen = 0;
     float previewFade = 0.0f, previewFadeStep = 0.0f; // weiche Ein-/Ausblendung (3 ms)

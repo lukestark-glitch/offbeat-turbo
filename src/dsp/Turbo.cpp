@@ -254,6 +254,15 @@ void Turbo::processChain(const float* inL, const float* inR, float* outL, float*
 
 // ---- Vorhören ---------------------------------------------------------------------------------
 
+void Turbo::setTransport(bool playing)
+{
+    if (playing && !transportRunning && previewActive) {
+        previewPending = 0;
+        previewFadeStep = -1.0f / (0.003f * sr); // ausblenden, dann aus
+    }
+    transportRunning = playing;
+}
+
 void Turbo::startPreview(int code)
 {
     if (code == 2)
@@ -275,7 +284,9 @@ void Turbo::updatePreview(const float* inL, const float* inR, uint32_t frames)
     } else if (request != lastPreview) {
         lastPreview = request;
         const int code = request & 7;
-        if (code == 1 || code == 2) {
+        if (transportRunning && code != 0) {
+            // Host spielt: Vorhören startet nicht (auch nicht durch wiederhergestellte Parameter)
+        } else if (code == 1 || code == 2) {
             if (previewActive) { // läuft schon: erst ausblenden, dann umschalten (kein Pegelsprung)
                 previewPending = code;
                 previewFadeStep = -1.0f / (0.003f * sr);

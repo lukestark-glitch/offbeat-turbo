@@ -47,6 +47,7 @@ protected:
 
     void run(const float** inputs, float** outputs, uint32_t frames) override
     {
+        turbo.setTransport(getTimePosition().playing);
         turbo.process(inputs[0], inputs[1], outputs[0], outputs[1], frames);
     }
 
