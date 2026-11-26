@@ -41,4 +41,7 @@ extern const int kPresetCount;
 void applyPreset(int index, float out[kParamCount]);
 void applyDefaults(float out[kParamCount]);
 
+// Parameter, die KOPIEREN (und topline/offbeat-render --preset-json) als JSON ausgibt.
+int jsonParams(const float values[kParamCount], int* out);
+
 } // namespace offbeat

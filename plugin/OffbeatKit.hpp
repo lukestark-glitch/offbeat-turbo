@@ -76,15 +76,6 @@ protected:
 
     virtual void drawContent() = 0;
     virtual void onButton(int /*id*/) {}
-    // Parameter für KOPIEREN; Standard: alle einstellbaren.
-    virtual int jsonParams(int* out, int max) const
-    {
-        int n = 0;
-        for (int p = 0; p < offbeat::kParamCount && n < max; ++p)
-            if (!(offbeat::kParams[p].flags & offbeat::kFlagOutput))
-                out[n++] = p;
-        return n;
-    }
     virtual const char* controlLabel(int p) const { return offbeat::kParams[p].name; }
 
     // ---- Bausteine ------------------------------------------------------------------------------
@@ -544,8 +535,17 @@ protected:
     {
         // Bild der Oberfläche für die Doku: Standalone mit OFFBEAT_SCREENSHOT=datei.ppm starten,
         // die Oberfläche speichert sich nach ein paar Bildern selbst und beendet das Programm.
+        // OFFBEAT_SCREENSHOT_PRESET=n lädt vorher das Preset n.
         if (const char* shot = std::getenv("OFFBEAT_SCREENSHOT")) {
-            if (++screenshotTicks == 20)
+            if (++screenshotTicks == 2)
+                if (const char* preset = std::getenv("OFFBEAT_SCREENSHOT_PRESET")) {
+                    float v[offbeat::kParamCount];
+                    offbeat::applyPreset(std::atoi(preset), v);
+                    for (int p = 0; p < offbeat::kParamCount; ++p)
+                        if (!(offbeat::kParams[p].flags & offbeat::kFlagOutput))
+                            setValue(p, v[p], false);
+                }
+            if (screenshotTicks == 20)
                 getWindow().renderToPicture(shot);
             else if (screenshotTicks == 40)
                 std::exit(0);
@@ -781,7 +781,7 @@ private:
     void copySettings()
     {
         int list[offbeat::kParamCount];
-        const std::string json = offbeat::toJson(values, list, jsonParams(list, offbeat::kParamCount));
+        const std::string json = offbeat::toJson(values, list, offbeat::jsonParams(values, list));
         if (getWindow().setClipboard("text/plain", json.c_str(), json.size()))
             showStatus("Einstellungen kopiert");
         else

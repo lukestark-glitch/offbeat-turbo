@@ -337,6 +337,13 @@ int main(int argc, char** argv)
             const Audio d = makeDrop(48000, -16.0f);
             return writeWav(v, d.l, d.r, d.sr) ? 0 : 1;
         }
+        if (a == "--preset-json" && v) { // Preset als JSON, genau wie KOPIEREN in der Oberfläche
+            float vals[kParamCount];
+            applyPreset(std::atoi(v), vals);
+            int list[kParamCount];
+            std::fputs(toJson(vals, list, jsonParams(vals, list)).c_str(), stdout);
+            return 0;
+        }
         if (a == "--list") {
             std::puts("Presets:");
             for (int p = 0; p < kPresetCount; ++p)
