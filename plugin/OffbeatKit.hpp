@@ -968,7 +968,7 @@ protected:
         return true;
     }
 
-private:
+protected: // auch für eigene Bedienflächen abgeleiteter Oberflächen (z. B. Raster von Gearbox)
     using Clock = std::chrono::steady_clock;
     enum Kind { kKnob, kCompact, kButton };
     struct Hit {
