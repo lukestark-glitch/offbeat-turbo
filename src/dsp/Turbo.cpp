@@ -2,10 +2,6 @@
 
 #include <algorithm>
 
-#if defined(__SSE__) || defined(__x86_64__)
-#include <xmmintrin.h>
-#define OFFBEAT_HAVE_SSE 1
-#endif
 
 namespace offbeat {
 
@@ -137,10 +133,7 @@ void Turbo::setParam(int id, float value)
 
 void Turbo::process(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames)
 {
-#ifdef OFFBEAT_HAVE_SSE
-    const unsigned int oldCsr = _mm_getcsr();
-    _mm_setcsr(oldCsr | 0x8040); // Flush-to-Zero + Denormals-are-Zero
-#endif
+    const DenormalGuard denormals; // Flush-to-Zero für diesen Block (Intel und Apple Silicon)
     const bool autoOn = params[kAuto] >= 0.5f;
     if (!autoOn)
         autoDb = 0.0f;
@@ -256,9 +249,6 @@ void Turbo::process(const float* inL, const float* inR, float* outL, float* outR
     params[kGainReduction] = clampf(grShown, -30.0f, 0.0f);
     params[kOutPeak] = clampf(20.0f * std::log10(maxPeak + 1e-9f), -60.0f, 6.0f);
     params[kAutoGain] = autoDb;
-#ifdef OFFBEAT_HAVE_SSE
-    _mm_setcsr(oldCsr);
-#endif
 }
 
 } // namespace offbeat

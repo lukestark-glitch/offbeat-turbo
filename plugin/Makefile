@@ -28,6 +28,11 @@ $(DPF_BUILD_DIR)/TurboUI.cpp.o: $(DPF_BUILD_DIR)/TurboImage.h
 
 TARGETS += vst3
 TARGETS += lv2
+TARGETS += vst2
+TARGETS += clap
+ifeq ($(MACOS),true)
+TARGETS += au
+endif
 TARGETS += ladspa
 
 all: $(TARGETS)

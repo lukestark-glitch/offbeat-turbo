@@ -1,7 +1,7 @@
 // turbo-render: rechnet eine WAV-Datei durch Offbeat Turbo und gibt die Lautheit vorher/nachher aus.
 //
 //   turbo-render --in export.wav [--out master.wav] [--preset NAME|NR] [--set boost=8] [--json datei]
-//   turbo-render --check-all     (künstlicher Drop + Grenzfälle gegen die Ziele aus docs/PLAN.md, wie make check)
+//   turbo-render --check-all     (künstlicher Drop + Grenzfälle gegen die Ziele in docs/CODE.md, wie make check)
 //   turbo-render --make-drop drop.wav   (Test-Drop der Abnahme als WAV)
 //   turbo-render --list
 #include "Measure.hpp"
@@ -336,6 +336,13 @@ int main(int argc, char** argv)
         if (a == "--make-drop" && v) { // Test-Drop der Abnahme als WAV (RMS −16 dBFS), z. B. zum Vergleichen
             const Audio d = makeDrop(48000, -16.0f);
             return writeWav(v, d.l, d.r, d.sr) ? 0 : 1;
+        }
+        if (a == "--preset-json" && v) { // Preset als JSON, genau wie KOPIEREN in der Oberfläche
+            float vals[kParamCount];
+            applyPreset(std::atoi(v), vals);
+            int list[kParamCount];
+            std::fputs(toJson(vals, list, jsonParams(vals, list)).c_str(), stdout);
+            return 0;
         }
         if (a == "--list") {
             std::puts("Presets:");

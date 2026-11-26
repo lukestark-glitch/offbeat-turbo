@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -75,15 +76,6 @@ protected:
 
     virtual void drawContent() = 0;
     virtual void onButton(int /*id*/) {}
-    // Parameter für KOPIEREN; Standard: alle einstellbaren.
-    virtual int jsonParams(int* out, int max) const
-    {
-        int n = 0;
-        for (int p = 0; p < offbeat::kParamCount && n < max; ++p)
-            if (!(offbeat::kParams[p].flags & offbeat::kFlagOutput))
-                out[n++] = p;
-        return n;
-    }
     virtual const char* controlLabel(int p) const { return offbeat::kParams[p].name; }
 
     // ---- Bausteine ------------------------------------------------------------------------------
@@ -152,7 +144,7 @@ protected:
 
         save();
         translate(cx - 4, cy + 1);
-        skewX(-0.28f);
+        transform(1.0f, 0.0f, std::tan(-0.28f), 1.0f, 0.0f, 0.0f); // kursiv; skewX() erlaubt in DPF nur positive Winkel
         fontSize(31);
         textLetterSpacing(3);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
@@ -450,7 +442,7 @@ protected:
     {
         const float w = 92, h = 20;
         pill(kButtonCopy, xRight - 2 * w - 6, y, w, h, "Kopieren", th.brand, false);
-        pill(kButtonPaste, xRight - w, y, w, h, "Einf\xc3\xbcgen", th.brand, false);
+        pill(kButtonPaste, xRight - w, y, w, h, "EINF\xc3\x9cGEN", th.brand, false); // Großbuchstaben: upper() kennt kein ü
         if (!status.empty() && Clock::now() < statusUntil) {
             fontSize(11);
             textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
@@ -541,6 +533,24 @@ protected:
     // erst beim nächsten Ereignis; hier wird im Idle-Takt sicher nachgezeichnet.
     void uiIdle() override
     {
+        // Bild der Oberfläche für die Doku: Standalone mit OFFBEAT_SCREENSHOT=datei.ppm starten,
+        // die Oberfläche speichert sich nach ein paar Bildern selbst und beendet das Programm.
+        // OFFBEAT_SCREENSHOT_PRESET=n lädt vorher das Preset n.
+        if (const char* shot = std::getenv("OFFBEAT_SCREENSHOT")) {
+            if (++screenshotTicks == 2)
+                if (const char* preset = std::getenv("OFFBEAT_SCREENSHOT_PRESET")) {
+                    float v[offbeat::kParamCount];
+                    offbeat::applyPreset(std::atoi(preset), v);
+                    for (int p = 0; p < offbeat::kParamCount; ++p)
+                        if (!(offbeat::kParams[p].flags & offbeat::kFlagOutput))
+                            setValue(p, v[p], false);
+                }
+            if (screenshotTicks == 20)
+                getWindow().renderToPicture(shot);
+            else if (screenshotTicks == 40)
+                std::exit(0);
+            dirty = true;
+        }
         if (dirty)
             repaint();
     }
@@ -697,6 +707,7 @@ private:
     Kind dragKind = kKnob;
     bool dragMoved = false, dirty = true;
     uint lastClickTime = 0;
+    int screenshotTicks = 0;
     float dragY = 0, dragNorm = 0;
     std::string editText, status;
     Clock::time_point statusUntil;
@@ -770,7 +781,7 @@ private:
     void copySettings()
     {
         int list[offbeat::kParamCount];
-        const std::string json = offbeat::toJson(values, list, jsonParams(list, offbeat::kParamCount));
+        const std::string json = offbeat::toJson(values, list, offbeat::jsonParams(values, list));
         if (getWindow().setClipboard("text/plain", json.c_str(), json.size()))
             showStatus("Einstellungen kopiert");
         else

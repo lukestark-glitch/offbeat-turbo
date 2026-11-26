@@ -60,4 +60,14 @@ void applyPreset(int index, float out[kParamCount])
         out[p.values[i].id] = p.values[i].value;
 }
 
+int jsonParams(const float[kParamCount], int* out)
+{
+    // alle einstellbaren Regler (ohne Anzeige-Werte)
+    int n = 0;
+    for (int p = 0; p < kParamCount; ++p)
+        if (!(kParams[p].flags & kFlagOutput))
+            out[n++] = p;
+    return n;
+}
+
 } // namespace offbeat

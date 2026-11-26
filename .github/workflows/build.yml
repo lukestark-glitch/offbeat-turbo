@@ -1,0 +1,67 @@
+# Baut das Plugin für macOS (Universal), Windows und Linux, prüft es mit dem Renderer (make check)
+# und hängt bei einem Versions-Tag (v*) die fertigen Plugins als Download an ein GitHub-Release.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  NAME: offbeat-turbo
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: macos, shell: bash }
+          - { os: ubuntu-22.04, target: linux, shell: bash }
+          - { os: windows-latest, target: windows, shell: 'msys2 {0}' }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - name: Windows-Werkzeuge (MSYS2/MinGW)
+        if: matrix.target == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: make vim zip mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
+      - name: Linux-Pakete
+        if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libdbus-1-dev pkg-config xxd zip
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Bauen
+        run: make -j4
+      - name: Prüfen (make check)
+        run: make check
+      - name: Packen
+        run: |
+          cd bin
+          zip -qry "../${NAME}-${{ matrix.target }}.zip" $(ls -d *.vst3 *.vst *.component *.clap *.lv2 *.dll *.so *.dylib 2>/dev/null)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAME }}-${{ matrix.target }}
+          path: ${{ env.NAME }}-${{ matrix.target }}.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Release mit den Downloads anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" *.zip --repo "${GITHUB_REPOSITORY}" --title "${NAME} ${GITHUB_REF_NAME}" --generate-notes
