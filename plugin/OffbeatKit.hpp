@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -152,7 +153,7 @@ protected:
 
         save();
         translate(cx - 4, cy + 1);
-        skewX(-0.28f);
+        transform(1.0f, 0.0f, std::tan(-0.28f), 1.0f, 0.0f, 0.0f); // kursiv; skewX() erlaubt in DPF nur positive Winkel
         fontSize(31);
         textLetterSpacing(3);
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
@@ -450,7 +451,7 @@ protected:
     {
         const float w = 92, h = 20;
         pill(kButtonCopy, xRight - 2 * w - 6, y, w, h, "Kopieren", th.brand, false);
-        pill(kButtonPaste, xRight - w, y, w, h, "Einf\xc3\xbcgen", th.brand, false);
+        pill(kButtonPaste, xRight - w, y, w, h, "EINF\xc3\x9cGEN", th.brand, false); // Großbuchstaben: upper() kennt kein ü
         if (!status.empty() && Clock::now() < statusUntil) {
             fontSize(11);
             textAlign(ALIGN_RIGHT | ALIGN_MIDDLE);
@@ -541,6 +542,15 @@ protected:
     // erst beim nächsten Ereignis; hier wird im Idle-Takt sicher nachgezeichnet.
     void uiIdle() override
     {
+        // Bild der Oberfläche für die Doku: Standalone mit OFFBEAT_SCREENSHOT=datei.ppm starten,
+        // die Oberfläche speichert sich nach ein paar Bildern selbst und beendet das Programm.
+        if (const char* shot = std::getenv("OFFBEAT_SCREENSHOT")) {
+            if (++screenshotTicks == 20)
+                getWindow().renderToPicture(shot);
+            else if (screenshotTicks == 40)
+                std::exit(0);
+            dirty = true;
+        }
         if (dirty)
             repaint();
     }
@@ -697,6 +707,7 @@ private:
     Kind dragKind = kKnob;
     bool dragMoved = false, dirty = true;
     uint lastClickTime = 0;
+    int screenshotTicks = 0;
     float dragY = 0, dragNorm = 0;
     std::string editText, status;
     Clock::time_point statusUntil;

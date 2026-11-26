@@ -19,6 +19,10 @@
 #define DISTRHO_PLUGIN_WANT_PROGRAMS 1
 #define DISTRHO_PLUGIN_WANT_LATENCY  1
 
+// VST2 kennt keine Anzeige-Werte; DPF zeigt dort sonst nur Parameter vor dem ersten Anzeige-Wert,
+// und "Auto" (hinten angehängt) würde fehlen. So zeigt VST2 alle Parameter (Anzeigen als Regler).
+#define DPF_VST_SHOW_PARAMETER_OUTPUTS 1
+
 #define DISTRHO_UI_USE_NANOVG        1
 #define DISTRHO_UI_USER_RESIZABLE    0
 #define DISTRHO_UI_DEFAULT_WIDTH     860
