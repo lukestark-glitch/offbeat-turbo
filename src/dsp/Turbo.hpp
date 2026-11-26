@@ -48,16 +48,28 @@ public:
     void setParam(int id, float value);
     float getParam(int id) const { return params[id]; }
 
+    // Host-Audio durch die Kette. Läuft das Vorhören (Parameter preview), kommt stattdessen der Demo-Loop
+    // heraus (vorher bzw. nachher); Host-Audio am Eingang hat Vorrang und beendet das Vorhören.
     void process(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames);
 
     // Verzögerung durch Look-ahead und Interpolator, in Samples.
     uint32_t latency() const { return (uint32_t)(lookahead - 1 + TruePeak::kDelay); }
 
 private:
+    void processChain(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames);
+    void updatePreview(const float* inL, const float* inR, uint32_t frames);
+    void startPreview(int code);
     void reset();
 
     float params[kParamCount];
     float sr = 48000.0f;
+
+    // Vorhören
+    bool previewSeen = false;
+    int lastPreview = 0, previewActive = 0, previewPending = 0; // Pending: nach dem Ausblenden umschalten
+    uint32_t previewPos = 0, previewLen = 0;
+    float previewFade = 0.0f, previewFadeStep = 0.0f; // weiche Ein-/Ausblendung (3 ms)
+    float demoL[256], demoR[256];
 
     // Kompressor
     float compEnv = 0.0f;

@@ -7,7 +7,7 @@
 
 NAME = offbeat-turbo
 CXX ?= c++
-DSP_SRC = src/dsp/Turbo.cpp src/dsp/Params.cpp src/dsp/ParamText.cpp
+DSP_SRC = src/dsp/Turbo.cpp src/dsp/Params.cpp src/dsp/ParamText.cpp src/dsp/Preview.cpp
 DSP_HDR = $(wildcard src/dsp/*.hpp) tools/Measure.hpp
 PLUGINS_DIR = $(HOME)/Library/Audio/Plug-Ins
 # LMMS-LADSPA-Ordner aus ~/.lmmsrc.xml (Attribut laddir), sonst der LMMS-Standard
@@ -16,7 +16,9 @@ ifeq ($(LMMS_LADSPA_DIR),)
 LMMS_LADSPA_DIR = $(HOME)/Documents/lmms/plugins/ladspa/
 endif
 
-ifeq ($(shell uname -s),Darwin)
+# UNIVERSAL=false baut auf dem Mac nur für die eigene Architektur (z. B. schneller auf einem Intel-Mac).
+UNIVERSAL ?= true
+ifeq ($(shell uname -s)$(UNIVERSAL),Darwintrue)
 # Universal-Binary: läuft auf Intel- und Apple-Silicon-Macs. NOOPT: ohne x86-only-Flags (-mfpmath=sse).
 ARCH_FLAGS = -arch x86_64 -arch arm64 -mmacosx-version-min=10.15
 PLUGIN_ENV = CFLAGS="$(ARCH_FLAGS)" CXXFLAGS="$(ARCH_FLAGS)" LDFLAGS="$(ARCH_FLAGS)" NOOPT=true
@@ -34,12 +36,18 @@ standalone:
 
 render: bin/turbo-render
 
-bin/turbo-render: tools/turbo-render.cpp $(DSP_SRC) $(DSP_HDR)
+# Demo-Loop der Vorschau als C-Array (für Renderer; das Plugin erzeugt sich seine Kopie in plugin/Makefile)
+build/DemoLoop.h: assets/demo-loop.raw
+	@mkdir -p build
+	cd assets && xxd -i demo-loop.raw > ../build/DemoLoop.h
+
+bin/turbo-render: tools/turbo-render.cpp $(DSP_SRC) $(DSP_HDR) build/DemoLoop.h
 	@mkdir -p bin
-	$(CXX) -std=gnu++17 -O2 -Wall -Wextra -Isrc/dsp -Itools tools/turbo-render.cpp $(DSP_SRC) -o $@
+	$(CXX) -std=gnu++17 -O2 -Wall -Wextra -Isrc/dsp -Itools -Ibuild tools/turbo-render.cpp $(DSP_SRC) -o $@
 
 check: render
 	bin/turbo-render --check-all
+	bin/turbo-render --preview-check
 
 install: plugin
 	rm -rf "$(PLUGINS_DIR)/VST3/$(NAME).vst3" "$(PLUGINS_DIR)/LV2/$(NAME).lv2" "$(PLUGINS_DIR)/VST/$(NAME).vst" \

@@ -11,6 +11,8 @@ enum ParamFlags : uint32_t {
     kFlagBool = 2,   // An/Aus-Schalter
     kFlagInt = 4,    // ganzzahlig (mit labels: Auswahl)
     kFlagOutput = 8, // Anzeige-Wert vom DSP an die Oberfläche (Pegel), nicht einstellbar
+    kFlagHidden = 16, // Bedienelement der Oberfläche (z. B. Vorhören): im Host versteckt, nicht automatisierbar,
+                      // nicht in Presets und JSON
 };
 
 struct ParamInfo {

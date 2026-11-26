@@ -1,6 +1,7 @@
 // Oberfläche von Offbeat Turbo: großer Ladedruck-Regler (Boost), Lautheitsanzeige mit Zielzone,
 // Turbolader und die übrigen Regler. Look und Bedienung: OffbeatKit.hpp (aus offbeat-engine).
 #include "OffbeatKit.hpp"
+#include "Preview.hpp"
 #include "TurboImage.h" // aus assets/turbo.png erzeugt (xxd -i), siehe plugin/Makefile
 
 START_NAMESPACE_DISTRHO
@@ -11,8 +12,8 @@ using kit::kCellW;
 using kit::kLabelH;
 
 namespace {
-constexpr float kW = 860, kH = 560, kMargin = 20, kGridX = 31;
-constexpr float kTopY = 104, kTopH = 300, kKnobsY = 416;
+constexpr float kW = 860, kH = 700, kMargin = 20, kGridX = 31;
+constexpr float kTopY = 104, kTopH = 300, kKnobsY = 416, kPreviewY = 562;
 constexpr float kMeterX = 452, kBarX = 560, kBarW = 200;
 
 const int kKnobs[7] = { kGlue, kCompAttack, kCompRelease, kClip, kCeiling, kLimRelease, kTarget };
@@ -70,6 +71,35 @@ protected:
         for (int i = 0; i < 7; ++i)
             knob(kKnobs[i], kGridX + i * kCellW, kKnobsY + kLabelH, th.brand);
         copyPaste(kW - kMargin - 12, kKnobsY + 3);
+
+        // Vorschau: eingebauter Demo-Loop (Kick+Bass und Hats, mit Offbeat Engine erzeugt) vorher/nachher
+        drawPanel(kMargin, kPreviewY, kW - 2 * kMargin, kH - kPreviewY - 12, "VORSCHAU  \xc2\xb7  DEMO-LOOP 160 BPM", th.brand);
+        drawPreview(kMargin + 14, kPreviewY + kLabelH + 2, kW - 2 * kMargin - 28, kH - kPreviewY - kLabelH - 26, th.brand);
+    }
+
+    PreviewParams previewParams() const override
+    {
+        PreviewParams pp;
+        pp.play = kPreview, pp.loop = kPreviewLoop, pp.bar = kPreviewBar, pp.active = kPreviewActive;
+        pp.allButton = false; // vorher und nachher gleichzeitig ergibt keinen Sinn
+        return pp;
+    }
+
+    // Ebenen: vorher (Demo-Ausschnitt) und nachher (durch Turbo); die gefüllte Fläche zeigt nachher.
+    void renderPreview() override
+    {
+        const double beats = values[kPreviewBar] >= 0.5f ? 4.0 : 1.0;
+        static const char* const kNames[2] = { "Vorher", "Nachher" };
+        std::vector<float> l, r;
+        previewLayers.resize(2);
+        for (int i = 0; i < 2; ++i) {
+            offbeat::renderPreview(values, i, beats, l, r);
+            previewLayers[i].name = kNames[i];
+            previewLayers[i].mono.resize(l.size());
+            for (size_t k = 0; k < l.size(); ++k)
+                previewLayers[i].mono[k] = 0.5f * (l[k] + r[k]);
+        }
+        previewSum = previewLayers[1].mono;
     }
 
     const char* controlLabel(int p) const override

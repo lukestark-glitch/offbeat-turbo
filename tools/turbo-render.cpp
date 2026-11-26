@@ -7,6 +7,7 @@
 #include "Measure.hpp"
 #include "ParamText.hpp"
 #include "Turbo.hpp"
+#include "Preview.hpp"
 
 #include <cfloat>
 #include <string>
@@ -315,10 +316,137 @@ int checkAll()
     return failed ? 1 : 0;
 }
 
+// Abnahme der Vorschau: renderPreview() (Oberfläche) ist bitgleich zu turbo-render mit demselben Demo-Ausschnitt;
+// Vorhören über den Plugin-Ausgang knackst nicht (Start, Wechsel vorher/nachher, Stopp); Host-Audio hat Vorrang.
+int previewCheck()
+{
+    int failed = 0;
+    auto expect = [&](const std::string& what, bool ok) {
+        std::printf("  [%s] %s\n", ok ? "OK " : "FEHLER", what.c_str());
+        failed += ok ? 0 : 1;
+    };
+    char buf[200];
+    std::puts("== Vorschau bitgleich zu turbo-render (alle Presets, vorher und nachher, 1 Schlag und 1 Takt)");
+    int compared = 0, differing = 0;
+    for (int p = 0; p < kPresetCount; ++p) {
+        float values[kParamCount];
+        applyPreset(p, values);
+        for (double beats : { 1.0, 4.0 })
+            for (int layer = 0; layer < 2; ++layer) {
+                std::vector<float> al, ar;
+                renderPreview(values, layer, beats, al, ar);
+                const uint32_t frames = (uint32_t)std::lround(beats * kDemoBeat);
+                Audio demo;
+                demo.sr = kDemoRate;
+                const uint32_t total = layer ? frames + Turbo().latency() : frames;
+                for (uint32_t i = 0; i < total; ++i)
+                    demo.l.push_back(demoSample(i, 0)), demo.r.push_back(demoSample(i, 1));
+                const Audio b = layer ? process(demo, values) : demo;
+                ++compared;
+                differing += (al == b.l && ar == b.r) ? 0 : 1;
+            }
+    }
+    std::snprintf(buf, sizeof(buf), "%d Vorschau-Renderings, davon %d nicht bitgleich", compared, differing);
+    expect(buf, differing == 0);
+
+    std::puts("== Vorhören über den Plugin-Ausgang (Standard-Preset, Loop): Start, Wechsel vorher→nachher, Stopp, Host-Audio");
+    float values[kParamCount];
+    applyPreset(0, values);
+    Turbo t;
+    t.setSampleRate((float)kDemoRate);
+    for (int i = 0; i < kParamCount; ++i)
+        t.setParam(i, values[i]);
+    t.setParam(kPreviewLoop, 1);
+    t.setParam(kPreviewBar, 1);
+    const uint32_t total = 4 * kDemoRate;
+    std::vector<float> silence(256, 0.0f), host(256), l(total), r(total);
+    float maxStep = 0.0f, maxStepSteady = 0.0f, transStep[4] = {};
+    bool played = false, hostWon = false;
+    for (uint32_t pos = 0; pos < total; pos += 256) {
+        // Bezug für Knackser ist der unbearbeitete Loop (vorher): beim Start von „nachher“ greift Turbo frisch
+        // auf die harte Kick (Attack 0) zu – das ist Klang, nicht Vorhör-Mechanik.
+        if (pos == 256) t.setParam(kPreview, 1 | 8);      // vorher
+        if (pos == 256 * 200) t.setParam(kPreview, 2);    // Wechsel auf nachher (aus- und wieder einblenden)
+        if (pos == 256 * 350) t.setParam(kPreview, 0 | 8); // Stopp
+        if (pos == 256 * 450) t.setParam(kPreview, 1);    // wieder vorher
+        const bool hostPlays = pos >= 256 * 650;          // ab hier kommt Host-Audio
+        for (uint32_t i = 0; i < 256; ++i)
+            host[i] = hostPlays ? 0.1f * std::sin(2 * kPi * 220.0f * (pos + i) / kDemoRate) : 0.0f;
+        t.process(host.data(), host.data(), &l[pos], &r[pos], 256);
+        played |= t.getParam(kPreviewActive) == 1.0f;
+        if (hostPlays && pos > 256 * 652)
+            hostWon |= t.getParam(kPreviewActive) == 0.0f;
+        for (uint32_t i = pos + 1; i < pos + 256; ++i) {
+            const float step = std::fabs(l[i] - l[i - 1]);
+            int k = 0;
+            for (uint32_t at : { 256u, 256u * 200, 256u * 350, 256u * 450 }) {
+                if (i + kDemoRate / 100 > at && i < at + kDemoRate / 100)
+                    maxStep = std::fmax(maxStep, step), transStep[k] = std::fmax(transStep[k], step);
+                ++k;
+            }
+
+        }
+    }
+    std::printf("  Sprünge: Start %.4f, Wechsel %.4f, Stopp %.4f, Neustart %.4f\n", transStep[0], transStep[1], transStep[2], transStep[3]);
+    // Bezug: größter Sprung im Klang jeder Ebene selbst – frisch gestartetes Vorhören über zwei Loop-Runden
+    // (enthält den ersten, noch unkomprimierten Kick-Einsatz genauso wie der Wechsel)
+    for (int layer : { 1, 2 }) {
+        Turbo ref;
+        ref.setSampleRate((float)kDemoRate);
+        for (int i = 0; i < kParamCount; ++i)
+            ref.setParam(i, values[i]);
+        ref.setParam(kPreviewLoop, 1);
+        ref.setParam(kPreviewBar, 1);
+        std::vector<float> zl(256, 0.0f), ol(2 * kDemoFrames + 512), orr(ol.size());
+        for (uint32_t pos = 0; pos + 256 <= ol.size(); pos += 256) {
+            if (pos == 256)
+                ref.setParam(kPreview, layer | 8);
+            ref.process(zl.data(), zl.data(), &ol[pos], &orr[pos], 256);
+        }
+        for (size_t i = 256 * 2; i < ol.size(); ++i)
+            maxStepSteady = std::fmax(maxStepSteady, std::fabs(ol[i] - ol[i - 1]));
+    }
+    expect("Vorhören startet ohne Host-Audio", played);
+    expect("Host-Audio beendet das Vorhören", hostWon);
+    std::snprintf(buf, sizeof(buf), "Kein Knackser an Start/Wechsel/Stopp: größter Sprung %.4f ≤ im Klang der Ebenen selbst %.4f", maxStep, maxStepSteady);
+    expect(buf, maxStep <= maxStepSteady * 1.01f);
+    std::printf("%s\n", failed ? "NICHT BESTANDEN" : "BESTANDEN");
+    return failed;
+}
+
+// JSON für die LADSPA-Version in LMMS: LADSPA hat keine Oberfläche und kein EINFÜGEN. Darum zeigt dieses
+// Werkzeug zu einem JSON (z. B. aus KOPIEREN) die Werte, die man im LMMS-Effektfenster einstellt.
+int lmmsValues(const char* file)
+{
+    std::string json, errors;
+    if (FILE* f = std::fopen(file, "rb")) {
+        char buf[4096];
+        for (size_t n; (n = std::fread(buf, 1, sizeof(buf), f)) > 0;)
+            json.append(buf, n);
+        std::fclose(f);
+    }
+    float values[kParamCount];
+    applyDefaults(values);
+    bool changed[kParamCount] = {};
+    const int n = applyJson(json.c_str(), values, changed, errors);
+    if (n == 0) {
+        std::fprintf(stderr, "Kein gültiges JSON in %s\n", file);
+        return 2;
+    }
+    std::printf("In LMMS im Effektfenster von Offbeat Turbo (LADSPA) einstellen%s%s:\n", errors.empty() ? "" : " – ignoriert: ", errors.c_str());
+    for (int p = 0; p < kParamCount; ++p) {
+        const ParamInfo& i = kParams[p];
+        if (i.flags & (kFlagOutput | kFlagHidden))
+            continue;
+        std::printf("  %-18s %8g %-3s%s\n", i.name, values[p], i.unit, changed[p] ? "" : "  (Standard)");
+    }
+    return 0;
+}
+
 void usage()
 {
     std::puts("turbo-render --in datei.wav [--out datei.wav] [--preset NAME|NR] [--json datei] [--set symbol=wert]...\n"
-              "turbo-render --check-all | --make-drop datei.wav | --list");
+              "turbo-render --check-all | --preview-check | --lmms-values datei.json | --make-drop datei.wav | --list");
 }
 
 } // namespace
@@ -333,6 +461,10 @@ int main(int argc, char** argv)
         const char* v = i + 1 < argc ? argv[i + 1] : nullptr;
         if (a == "--check-all")
             return checkAll();
+        if (a == "--preview-check")
+            return previewCheck() ? 1 : 0;
+        if (a == "--lmms-values" && v)
+            return lmmsValues(v);
         if (a == "--make-drop" && v) { // Test-Drop der Abnahme als WAV (RMS −16 dBFS), z. B. zum Vergleichen
             const Audio d = makeDrop(48000, -16.0f);
             return writeWav(v, d.l, d.r, d.sr) ? 0 : 1;

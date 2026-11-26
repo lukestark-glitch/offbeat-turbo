@@ -22,6 +22,12 @@ enum ParamId {
     kOutPeak,
     kAuto,     // An: Lautheit regelt sich langsam auf Target nach (zusätzlich zu Boost)
     kAutoGain, // Anzeige: aktuelle Auto-Verstärkung
+    // Vorhören des Demo-Loops aus der Oberfläche (versteckt, nicht automatisierbar). preview: Bit 0–2 =
+    // 1 vorher, 2 nachher, 0 Stopp; Bit 3 wechselt bei jedem Klick, damit jede Änderung auslöst.
+    kPreview,
+    kPreviewLoop,
+    kPreviewBar,    // Ausschnitt: aus = 1 Schlag, an = 1 Takt
+    kPreviewActive, // Anzeige: was gerade vorgehört wird (0 = nichts)
 
     kParamCount
 };

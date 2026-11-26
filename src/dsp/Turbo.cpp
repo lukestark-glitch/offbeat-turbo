@@ -1,4 +1,5 @@
 #include "Turbo.hpp"
+#include "Preview.hpp"
 
 #include <algorithm>
 
@@ -131,7 +132,7 @@ void Turbo::setParam(int id, float value)
     params[id] = clampf(value, kParams[id].min, kParams[id].max);
 }
 
-void Turbo::process(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames)
+void Turbo::processChain(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames)
 {
     const DenormalGuard denormals; // Flush-to-Zero für diesen Block (Intel und Apple Silicon)
     const bool autoOn = params[kAuto] >= 0.5f;
@@ -249,6 +250,89 @@ void Turbo::process(const float* inL, const float* inR, float* outL, float* outR
     params[kGainReduction] = clampf(grShown, -30.0f, 0.0f);
     params[kOutPeak] = clampf(20.0f * std::log10(maxPeak + 1e-9f), -60.0f, 6.0f);
     params[kAutoGain] = autoDb;
+}
+
+// ---- Vorhören ---------------------------------------------------------------------------------
+
+void Turbo::startPreview(int code)
+{
+    if (code == 2)
+        reset(); // „nachher“ startet mit frischer Kette (wie ein neu eingefügtes Turbo)
+    previewActive = code;
+    previewPending = 0;
+    previewPos = 0;
+    previewLen = params[kPreviewBar] >= 0.5f ? kDemoFrames : kDemoBeat;
+    previewFade = 0.0f;
+    previewFadeStep = 1.0f / (0.003f * sr);
+}
+
+void Turbo::updatePreview(const float* inL, const float* inR, uint32_t frames)
+{
+    const int request = (int)params[kPreview];
+    if (!previewSeen) { // Wert beim Laden eines Projekts: nur merken, nicht abspielen
+        previewSeen = true;
+        lastPreview = request;
+    } else if (request != lastPreview) {
+        lastPreview = request;
+        const int code = request & 7;
+        if (code == 1 || code == 2) {
+            if (previewActive) { // läuft schon: erst ausblenden, dann umschalten (kein Pegelsprung)
+                previewPending = code;
+                previewFadeStep = -1.0f / (0.003f * sr);
+            } else {
+                startPreview(code);
+            }
+        } else if (previewActive) {
+            previewPending = 0;
+            previewFadeStep = -1.0f / (0.003f * sr); // ausblenden, dann aus
+        }
+    }
+    if (!previewActive)
+        return;
+    for (uint32_t i = 0; i < frames; ++i) // Host-Audio hat Vorrang
+        if (std::fabs(inL[i]) > 1e-4f || std::fabs(inR[i]) > 1e-4f) {
+            previewActive = 0;
+            return;
+        }
+}
+
+void Turbo::process(const float* inL, const float* inR, float* outL, float* outR, uint32_t frames)
+{
+    updatePreview(inL, inR, frames);
+    if (!previewActive) {
+        processChain(inL, inR, outL, outR, frames);
+        params[kPreviewActive] = 0.0f;
+        return;
+    }
+    // Demo-Loop statt Eingang (nachher: durch die Kette; vorher: unbearbeitet), in Stücken von 256
+    for (uint32_t done = 0; done < frames;) {
+        const uint32_t n = std::min<uint32_t>(256, frames - done);
+        for (uint32_t i = 0; i < n; ++i) {
+            const bool playing = previewPos < previewLen;
+            demoL[i] = playing ? demoSample(previewPos, 0) : 0.0f;
+            demoR[i] = playing ? demoSample(previewPos, 1) : 0.0f;
+            if (++previewPos >= previewLen && params[kPreviewLoop] >= 0.5f)
+                previewPos = 0;
+        }
+        if (previewActive == 2)
+            processChain(demoL, demoR, outL + done, outR + done, n);
+        else
+            std::copy(demoL, demoL + n, outL + done), std::copy(demoR, demoR + n, outR + done);
+        for (uint32_t i = 0; i < n; ++i) {
+            previewFade = clampf(previewFade + previewFadeStep, 0.0f, 1.0f);
+            outL[done + i] *= previewFade;
+            outR[done + i] *= previewFade;
+        }
+        done += n;
+        if (previewPending && previewFade <= 0.0f)
+            startPreview(previewPending); // ausgeblendet: jetzt umschalten und wieder einblenden
+    }
+    // Ende: ausgeblendet, oder Demo ohne Loop fertig (plus Latenz zum Ausklingen)
+    if ((previewFadeStep < 0.0f && previewFade <= 0.0f && !previewPending) || (params[kPreviewLoop] < 0.5f && previewPos >= previewLen + latency())) {
+        previewActive = 0;
+        reset(); // sonst käme der Demo-Rest aus der Limiter-Verzögerung ungedämpft heraus
+    }
+    params[kPreviewActive] = (float)previewActive;
 }
 
 } // namespace offbeat

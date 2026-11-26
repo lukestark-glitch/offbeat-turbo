@@ -7,7 +7,8 @@ FILES_DSP = \
 	TurboPlugin.cpp \
 	../src/dsp/Turbo.cpp \
 	../src/dsp/Params.cpp \
-	../src/dsp/ParamText.cpp
+	../src/dsp/ParamText.cpp \
+	../src/dsp/Preview.cpp
 
 # Params.cpp und ParamText.cpp nutzt auch die UI; sie steckt bei VST3 und LV2 (eine Datei) im selben Binary.
 FILES_UI = TurboUI.cpp
@@ -18,6 +19,17 @@ DPF_TARGET_DIR = ../bin
 include ../dpf/Makefile.plugins.mk
 
 BUILD_CXX_FLAGS += -std=gnu++17 -I../src/dsp -I$(DPF_BUILD_DIR)
+
+# Versionsnummer für die Oberfläche (klein unter dem Logo), aus git describe beim Build
+OFFBEAT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+BUILD_CXX_FLAGS += -DOFFBEAT_VERSION='"$(OFFBEAT_VERSION)"'
+
+# Demo-Loop der Vorschau als C-Array einbetten
+$(DPF_BUILD_DIR)/DemoLoop.h: ../assets/demo-loop.raw
+	-@mkdir -p $(DPF_BUILD_DIR)
+	cd ../assets && xxd -i demo-loop.raw > $(abspath $@)
+
+$(DPF_BUILD_DIR)/../src/dsp/Preview.cpp.o: $(DPF_BUILD_DIR)/DemoLoop.h
 
 # Turbolader-Bild für die Oberfläche als C-Array einbetten
 $(DPF_BUILD_DIR)/TurboImage.h: ../assets/turbo.png

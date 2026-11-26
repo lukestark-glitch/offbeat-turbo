@@ -11,6 +11,8 @@ inline void fillParameter(const offbeat::ParamInfo& info, Parameter& parameter)
 {
     using namespace offbeat;
     parameter.hints = (info.flags & kFlagOutput) ? kParameterIsOutput : kParameterIsAutomatable;
+    if (info.flags & kFlagHidden)
+        parameter.hints = (parameter.hints & kParameterIsOutput) | kParameterIsHidden;
     if (info.flags & kFlagLog)
         parameter.hints |= kParameterIsLogarithmic;
     if (info.flags & kFlagBool)

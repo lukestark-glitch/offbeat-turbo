@@ -1,5 +1,8 @@
-# Baut das Plugin für macOS (Universal), Windows und Linux, prüft es mit dem Renderer (make check)
-# und hängt bei einem Versions-Tag (v*) die fertigen Plugins als Download an ein GitHub-Release.
+# Baut das Plugin für Linux und Windows (bei jedem Push nach main, bei PRs und Tags) und für macOS
+# (nur bei PRs nach main, bei Tags v* und bei manuellem Start), prüft mit dem Renderer (make check)
+# und legt bei einem Tag v* ein GitHub-Release mit den Downloads an.
+# Commits mit [skip ci] lösen nichts aus. macOS-Runner sind knapp: ohne Runner zählt lokal `make check`
+# als Mac-Nachweis, das Mac-ZIP wird dann mit `gh release upload` nachgereicht.
 name: Build
 
 on:
@@ -7,7 +10,12 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   NAME: offbeat-turbo
@@ -18,7 +26,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: macos, shell: bash }
           - { os: ubuntu-22.04, target: linux, shell: bash }
           - { os: windows-latest, target: windows, shell: 'msys2 {0}' }
     runs-on: ${{ matrix.os }}
@@ -31,13 +38,14 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: make vim zip mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
+          install: make vim zip git mingw-w64-x86_64-gcc mingw-w64-x86_64-pkg-config
       - name: Linux-Pakete
         if: matrix.target == 'linux'
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libdbus-1-dev pkg-config xxd zip
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
       - name: Bauen
         run: make -j4
       - name: Prüfen (make check)
@@ -51,9 +59,32 @@ jobs:
           name: ${{ env.NAME }}-${{ matrix.target }}
           path: ${{ env.NAME }}-${{ matrix.target }}.zip
 
+  build-macos:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Bauen (Universal-Binary)
+        run: make -j4
+      - name: Prüfen (make check)
+        run: make check
+      - name: Packen
+        run: |
+          cd bin
+          zip -qry "../${NAME}-macos.zip" $(ls -d *.vst3 *.vst *.component *.clap *.lv2 *.dylib 2>/dev/null)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAME }}-macos
+          path: ${{ env.NAME }}-macos.zip
+
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    # Auch ohne Mac-Runner: Release mit Linux/Windows anlegen, das Mac-ZIP kommt dann lokal dazu
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success'
+    needs: [build, build-macos]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
