@@ -4,9 +4,47 @@
 #include <cmath>
 #include <cstdint>
 
+#if defined(__SSE__) || defined(__x86_64__)
+#include <xmmintrin.h>
+#endif
+
 namespace offbeat {
 
 constexpr float kPi = 3.14159265358979f;
+
+// Schaltet für die Lebensdauer des Objekts Flush-to-Zero ein (Intel: SSE-MXCSR, ARM/Apple Silicon:
+// FPCR-Bit FZ). Sehr kleine Zahlen (Denormals) in ausklingenden Filtern und Hall kosten sonst viel CPU.
+// Am Anfang jedes process() anlegen; beim Verlassen wird der alte Zustand wiederhergestellt.
+class DenormalGuard {
+public:
+    DenormalGuard()
+    {
+#if defined(__SSE__) || defined(__x86_64__)
+        old = _mm_getcsr();
+        _mm_setcsr(old | 0x8040); // Flush-to-Zero + Denormals-are-Zero
+#elif defined(__aarch64__)
+        __asm__ __volatile__("mrs %0, fpcr" : "=r"(old));
+        __asm__ __volatile__("msr fpcr, %0" : : "r"(old | (1ull << 24)));
+#endif
+    }
+    ~DenormalGuard()
+    {
+#if defined(__SSE__) || defined(__x86_64__)
+        _mm_setcsr(old);
+#elif defined(__aarch64__)
+        __asm__ __volatile__("msr fpcr, %0" : : "r"(old));
+#endif
+    }
+    DenormalGuard(const DenormalGuard&) = delete;
+    DenormalGuard& operator=(const DenormalGuard&) = delete;
+
+private:
+#if defined(__aarch64__)
+    uint64_t old = 0;
+#else
+    unsigned int old = 0;
+#endif
+};
 
 inline float clampf(float x, float lo, float hi) { return x < lo ? lo : (x > hi ? hi : x); }
 

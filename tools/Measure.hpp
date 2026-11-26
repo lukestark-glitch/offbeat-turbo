@@ -7,6 +7,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
