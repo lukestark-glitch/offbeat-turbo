@@ -1,7 +1,7 @@
 // turbo-render: rechnet eine WAV-Datei durch Offbeat Turbo und gibt die Lautheit vorher/nachher aus.
 //
 //   turbo-render --in export.wav [--out master.wav] [--preset NAME|NR] [--set boost=8] [--json datei]
-//   turbo-render --check-all     (künstlicher Drop + Grenzfälle gegen die Ziele aus docs/PLAN.md, wie make check)
+//   turbo-render --check-all     (künstlicher Drop + Grenzfälle gegen die Ziele in docs/CODE.md, wie make check)
 //   turbo-render --make-drop drop.wav   (Test-Drop der Abnahme als WAV)
 //   turbo-render --list
 #include "Measure.hpp"
