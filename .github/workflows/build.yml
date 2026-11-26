@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14, target: macos, shell: bash }
+          - { os: macos-latest, target: macos, shell: bash }
           - { os: ubuntu-22.04, target: linux, shell: bash }
           - { os: windows-latest, target: windows, shell: 'msys2 {0}' }
     runs-on: ${{ matrix.os }}
